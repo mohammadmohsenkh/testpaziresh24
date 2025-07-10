@@ -4,24 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>تفسیر هوشمند آزمایش</title>
+  <link href="https://cdn.fontcdn.ir/Font/Persian/Vazir/Vazir.css" rel="stylesheet" type="text/css" />
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Vazir', sans-serif;
       direction: rtl;
-      text-align: center;
       background-color: #f9f9f9;
-      padding: 40px 20px;
       margin: 0;
+      padding: 20px;
+      text-align: center;
     }
 
     h2 {
       color: #333;
-      margin-bottom: 20px;
       font-size: 22px;
+      margin-bottom: 20px;
     }
 
     input[type="file"] {
       margin-top: 20px;
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background-color: #218838;
     }
 
     #loading {
@@ -46,30 +62,21 @@
       100% { transform: rotate(360deg); }
     }
 
-    button {
-      padding: 12px 24px;
-      font-size: 16px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-top: 20px;
-    }
-
-    button:hover {
-      background-color: #218838;
+    /* Desktop Table */
+    .table-container {
+      display: none;
+      margin-top: 40px;
+      overflow-x: auto;
     }
 
     table {
-      margin: 40px auto;
       width: 100%;
       max-width: 1000px;
+      margin: 0 auto;
       border-collapse: collapse;
       background-color: #fff;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       font-size: 15px;
-      overflow-x: auto;
     }
 
     th, td {
@@ -92,9 +99,41 @@
       font-weight: bold;
     }
 
+    /* Mobile Cards */
+    .mobile-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 30px;
+    }
+
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      text-align: right;
+    }
+
+    .card strong {
+      display: inline-block;
+      width: 100px;
+      color: #555;
+    }
+
+    .card .status-normal {
+      color: green;
+      font-weight: bold;
+    }
+
+    .card .status-abnormal {
+      color: red;
+      font-weight: bold;
+    }
+
     #summary {
       margin-top: 30px;
-      font-size: 18px;
+      font-size: 17px;
       color: #333;
       max-width: 800px;
       margin-left: auto;
@@ -106,39 +145,12 @@
       box-shadow: 0 0 8px rgba(0,0,0,0.05);
     }
 
-    @media (max-width: 768px) {
-      body {
-        padding: 20px 10px;
-      }
-
-      h2 {
-        font-size: 18px;
-      }
-
-      button {
-        width: 100%;
-        font-size: 16px;
-      }
-
-      table {
-        font-size: 14px;
-      }
-
-      th, td {
-        padding: 10px;
-      }
-
-      #summary {
-        font-size: 16px;
-        padding: 15px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      table {
+    @media (min-width: 768px) {
+      .table-container {
         display: block;
-        overflow-x: auto;
-        white-space: nowrap;
+      }
+      .mobile-cards {
+        display: none;
       }
     }
   </style>
@@ -156,14 +168,16 @@
     در حال تفسیر آزمایش توسط هوش مصنوعی...
   </div>
 
-  <div id="result"></div>
+  <div class="table-container" id="tableContainer"></div>
+  <div class="mobile-cards" id="mobileCards"></div>
   <div id="summary"></div>
 
   <script>
     async function uploadFile() {
       const fileInput = document.getElementById('fileInput');
       const loading = document.getElementById('loading');
-      const resultDiv = document.getElementById('result');
+      const tableContainer = document.getElementById('tableContainer');
+      const mobileCards = document.getElementById('mobileCards');
       const summaryDiv = document.getElementById('summary');
 
       if (!fileInput.files.length) {
@@ -172,7 +186,8 @@
       }
 
       loading.style.display = "block";
-      resultDiv.innerHTML = "";
+      tableContainer.innerHTML = "";
+      mobileCards.innerHTML = "";
       summaryDiv.innerHTML = "";
 
       const file = fileInput.files[0];
@@ -192,7 +207,7 @@
         const fileUrl = uploadData?.url;
 
         if (!fileUrl) {
-          resultDiv.textContent = "خطا در دریافت آدرس فایل.";
+          tableContainer.textContent = "خطا در دریافت آدرس فایل.";
           return;
         }
 
@@ -208,7 +223,7 @@
         const jsonString = rawData[0]?.output;
 
         if (!jsonString) {
-          resultDiv.textContent = "خروجی معتبری از هوش مصنوعی دریافت نشد.";
+          tableContainer.textContent = "خروجی معتبری از هوش مصنوعی دریافت نشد.";
           return;
         }
 
@@ -216,6 +231,7 @@
         const items = parsedData.items || [];
         const summary = parsedData.summary || "خلاصه‌ای در دسترس نیست.";
 
+        // Desktop Table
         let tableHTML = `<table>
           <thead>
             <tr>
@@ -241,12 +257,27 @@
         });
 
         tableHTML += `</tbody></table>`;
+        tableContainer.innerHTML = tableHTML;
 
-        resultDiv.innerHTML = tableHTML;
+        // Mobile Cards
+        items.forEach(item => {
+          const statusClass = item.status.includes("غیر") ? "status-abnormal" : "status-normal";
+          const cardHTML = `
+            <div class="card">
+              <div><strong>نام:</strong> ${item.name}</div>
+              <div><strong>توضیح:</strong> ${item.description}</div>
+              <div><strong>محدوده نرمال:</strong> ${item.normal_range}</div>
+              <div><strong>مقدار شما:</strong> ${item.value}</div>
+              <div><strong>وضعیت:</strong> <span class="${statusClass}">${item.status}</span></div>
+            </div>
+          `;
+          mobileCards.innerHTML += cardHTML;
+        });
+
         summaryDiv.innerHTML = `<strong>نتیجه‌گیری:</strong> ${summary}`;
 
       } catch (error) {
-        resultDiv.textContent = "خطا در پردازش داده‌ها.";
+        tableContainer.textContent = "خطا در پردازش داده‌ها.";
         console.error(error);
       } finally {
         loading.style.display = "none";
