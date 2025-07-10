@@ -172,118 +172,118 @@
   <div class="mobile-cards" id="mobileCards"></div>
   <div id="summary"></div>
 
-  <script>
-    async function uploadFile() {
-      const fileInput = document.getElementById('fileInput');
-      const loading = document.getElementById('loading');
-      const tableContainer = document.getElementById('tableContainer');
-      const mobileCards = document.getElementById('mobileCards');
-      const summaryDiv = document.getElementById('summary');
+<script>
+  async function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const loading = document.getElementById('loading');
+    const tableContainer = document.getElementById('tableContainer');
+    const mobileCards = document.getElementById('mobileCards');
+    const summaryDiv = document.getElementById('summary');
 
-      if (!fileInput.files.length) {
-        alert("لطفاً ابتدا یک فایل PDF انتخاب کنید.");
+    if (!fileInput.files.length) {
+      alert("لطفاً ابتدا یک فایل PDF انتخاب کنید.");
+      return;
+    }
+
+    loading.style.display = "block";
+    tableContainer.innerHTML = "";
+    mobileCards.innerHTML = "";
+    summaryDiv.innerHTML = "";
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const uploadRes = await fetch("https://apigw.paziresh24.com/dynamic-form/v1/upload", {
+        method: "POST",
+        headers: {
+          "x-api-key": "635b0a41-65cc-4bcb-ad30-cb028518619d"
+        },
+        body: formData
+      });
+
+      const uploadData = await uploadRes.json();
+      const fileUrl = uploadData?.url;
+
+      if (!fileUrl) {
+        tableContainer.textContent = "خطا در دریافت آدرس فایل.";
         return;
       }
 
-      loading.style.display = "block";
-      tableContainer.innerHTML = "";
-      mobileCards.innerHTML = "";
-      summaryDiv.innerHTML = "";
+      const response = await fetch("https://mohikh.app.n8n.cloud/webhook/3935eaf2-3767-4e81-9d46-8c4ff52811ab", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ file_url: fileUrl })
+      });
 
-      const file = fileInput.files[0];
-      const formData = new FormData();
-      formData.append("file", file);
+      const rawData = await response.json();
+      const jsonString = rawData[0]?.output;
 
-      try {
-        const uploadRes = await fetch("https://apigw.paziresh24.com/dynamic-form/v1/upload", {
-          method: "POST",
-          headers: {
-            "x-api-key": "635b0a41-65cc-4bcb-ad30-cb028518619d"
-          },
-          body: formData
-        });
-
-        const uploadData = await uploadRes.json();
-        const fileUrl = uploadData?.url;
-
-        if (!fileUrl) {
-          tableContainer.textContent = "خطا در دریافت آدرس فایل.";
-          return;
-        }
-
-        const response = await fetch("https://mohikh.app.n8n.cloud/webhook/3935eaf2-3767-4e81-9d46-8c4ff52811ab", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ file_url: fileUrl })
-        });
-
-        const rawData = await response.json();
-        const jsonString = rawData[0]?.output;
-
-        if (!jsonString) {
-          tableContainer.textContent = "خروجی معتبری از هوش مصنوعی دریافت نشد.";
-          return;
-        }
-
-        const parsedData = JSON.parse(jsonString);
-        const items = parsedData.items || [];
-        const summary = parsedData.summary || "خلاصه‌ای در دسترس نیست.";
-
-        // Desktop Table
-        let tableHTML = `<table>
-          <thead>
-            <tr>
-              <th>نام فاکتور</th>
-              <th>توضیح</th>
-              <th>محدوده نرمال</th>
-              <th>مقدار شما</th>
-              <th>وضعیت</th>
-            </tr>
-          </thead>
-          <tbody>`;
-
-        items.forEach(item => {
-          const statusClass = item.status.includes("غیر") ? "status-abnormal" : "status-normal";
-          tableHTML += `
-            <tr>
-              <td>${item.name}</td>
-              <td>${item.description}</td>
-              <td>${item.normal_range}</td>
-              <td>${item.value}</td>
-              <td class="${statusClass}">${item.status}</td>
-            </tr>`;
-        });
-
-        tableHTML += `</tbody></table>`;
-        tableContainer.innerHTML = tableHTML;
-
-        // Mobile Cards
-        items.forEach(item => {
-          const statusClass = item.status.includes("غیر") ? "status-abnormal" : "status-normal";
-          const cardHTML = `
-            <div class="card">
-              <div><strong>نام:</strong> ${item.name}</div>
-              <div><strong>توضیح:</strong> ${item.description}</div>
-              <div><strong>محدوده نرمال:</strong> ${item.normal_range}</div>
-              <div><strong>مقدار شما:</strong> ${item.value}</div>
-              <div><strong>وضعیت:</strong> <span class="${statusClass}">${item.status}</span></div>
-            </div>
-          `;
-          mobileCards.innerHTML += cardHTML;
-        });
-
-        summaryDiv.innerHTML = `<strong>نتیجه‌گیری:</strong> ${summary}`;
-
-      } catch (error) {
-        tableContainer.textContent = "خطا در پردازش داده‌ها.";
-        console.error(error);
-      } finally {
-        loading.style.display = "none";
+      if (!jsonString) {
+        tableContainer.textContent = "خروجی معتبری از هوش مصنوعی دریافت نشد.";
+        return;
       }
+
+      const parsedData = JSON.parse(jsonString);
+      const items = parsedData.items || [];
+      const summary = parsedData.summary || "خلاصه‌ای در دسترس نیست.";
+
+      // ساخت جدول دسکتاپ
+      let tableHTML = `<table>
+        <thead>
+          <tr>
+            <th>نام فاکتور</th>
+            <th>توضیح</th>
+            <th>محدوده نرمال</th>
+            <th>مقدار شما</th>
+            <th>وضعیت</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+      items.forEach(item => {
+        const statusClass = item.status.includes("غیر") ? "status-abnormal" : "status-normal";
+        tableHTML += `
+          <tr>
+            <td>${item.name}</td>
+            <td>${item.description}</td>
+            <td>${item.normal_range}</td>
+            <td>${item.value}</td>
+            <td class="${statusClass}">${item.status}</td>
+          </tr>`;
+      });
+
+      tableHTML += `</tbody></table>`;
+      tableContainer.innerHTML = tableHTML;
+
+      // ساخت کارت موبایلی به‌صورت یک‌باره
+      let cardsHTML = "";
+      items.forEach(item => {
+        const statusClass = item.status.includes("غیر") ? "status-abnormal" : "status-normal";
+        cardsHTML += `
+          <div class="card">
+            <div><strong>نام:</strong> ${item.name}</div>
+            <div><strong>توضیح:</strong> ${item.description}</div>
+            <div><strong>محدوده نرمال:</strong> ${item.normal_range}</div>
+            <div><strong>مقدار شما:</strong> ${item.value}</div>
+            <div><strong>وضعیت:</strong> <span class="${statusClass}">${item.status}</span></div>
+          </div>`;
+      });
+      mobileCards.innerHTML = cardsHTML;
+
+      summaryDiv.innerHTML = `<strong>نتیجه‌گیری:</strong> ${summary}`;
+
+    } catch (error) {
+      tableContainer.textContent = "خطا در پردازش داده‌ها.";
+      console.error(error);
+    } finally {
+      loading.style.display = "none";
     }
-  </script>
+  }
+</script>
 
 </body>
 </html>
