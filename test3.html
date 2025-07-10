@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>تفسیر هوشمند آزمایش</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      direction: rtl;
+      text-align: center;
+      background-color: #f9f9f9;
+      padding: 40px 20px;
+    }
+
+    h2 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+
+    input[type="file"] {
+      margin-top: 20px;
+    }
+
+    #loading {
+      display: none;
+      margin-top: 30px;
+      font-size: 18px;
+      color: #444;
+    }
+
+    #spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #28a745;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 10px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    table {
+      margin: 40px auto;
+      width: 100%;
+      max-width: 1000px;
+      border-collapse: collapse;
+      background-color: #fff;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      font-size: 15px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      text-align: right;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    .status-normal {
+      color: green;
+      font-weight: bold;
+    }
+
+    .status-abnormal {
+      color: red;
+      font-weight: bold;
+    }
+
+    #summary {
+      margin-top: 30px;
+      font-size: 18px;
+      color: #333;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: justify;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.05);
+    }
+  </style>
+</head>
+<body>
+
+  <h2>ارسال فایل آزمایش برای تفسیر</h2>
+
+  <input type="file" id="fileInput" accept=".pdf">
+  <br>
+  <button onclick="uploadFile()">ارسال فایل برای تفسیر</button>
+
+  <div id="loading">
+    <div id="spinner"></div>
+    در حال تفسیر آزمایش توسط هوش مصنوعی...
+  </div>
+
+  <div id="result"></div>
+  <div id="summary"></div>
+
+  <script>
+    async function uploadFile() {
+      const fileInput = document.getElementById('fileInput');
+      const loading = document.getElementById('loading');
+      const resultDiv = document.getElementById('result');
+      const summaryDiv = document.getElementById('summary');
+
+      if (!fileInput.files.length) {
+        alert("لطفاً ابتدا یک فایل PDF انتخاب کنید.");
+        return;
+      }
+
+      loading.style.display = "block";
+      resultDiv.innerHTML = "";
+      summaryDiv.innerHTML = "";
+
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        // مرحله ۱: آپلود فایل
+        const uploadRes = await fetch("https://apigw.paziresh24.com/dynamic-form/v1/upload", {
+          method: "POST",
+          headers: {
+            "x-api-key": "635b0a41-65cc-4bcb-ad30-cb028518619d"
+          },
+          body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+        const fileUrl = uploadData?.url;
+
+        if (!fileUrl) {
+          resultDiv.textContent = "خطا در دریافت آدرس فایل.";
+          return;
+        }
+
+        // مرحله ۲: ارسال URL به n8n
+        const response = await fetch("https://mohikh.app.n8n.cloud/webhook/3935eaf2-3767-4e81-9d46-8c4ff52811ab", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ file_url: fileUrl })
+        });
+
+        const rawData = await response.json();
+        const jsonString = rawData[0]?.output;
+
+        if (!jsonString) {
+          resultDiv.textContent = "خروجی معتبری از هوش مصنوعی دریافت نشد.";
+          return;
+        }
+
+        // تبدیل رشته JSON به شیء
+        const parsedData = JSON.parse(jsonString);
+        const items = parsedData.items || [];
+        const summary = parsedData.summary || "خلاصه‌ای در دسترس نیست.";
+
+        // ساخت جدول نمایش
+        let tableHTML = `<table>
+          <thead>
+            <tr>
+              <th>نام فاکتور</th>
+              <th>توضیح</th>
+              <th>محدوده نرمال</th>
+              <th>مقدار شما</th>
+              <th>وضعیت</th>
+            </tr>
+          </thead>
+          <tbody>`;
+
+        items.forEach(item => {
+          const statusClass = item.status.includes("غیر") ? "status-abnormal" : "status-normal";
+          tableHTML += `
+            <tr>
+              <td>${item.name}</td>
+              <td>${item.description}</td>
+              <td>${item.normal_range}</td>
+              <td>${item.value}</td>
+              <td class="${statusClass}">${item.status}</td>
+            </tr>`;
+        });
+
+        tableHTML += `</tbody></table>`;
+
+        resultDiv.innerHTML = tableHTML;
+        summaryDiv.innerHTML = `<strong>نتیجه‌گیری:</strong> ${summary}`;
+
+      } catch (error) {
+        resultDiv.textContent = "خطا در پردازش داده‌ها.";
+        console.error(error);
+      } finally {
+        loading.style.display = "none";
+      }
+    }
+  </script>
+
+</body>
+</html>
