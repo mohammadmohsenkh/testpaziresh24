@@ -6,25 +6,6 @@
   <title>تفسیر هوشمند آزمایش</title>
   <style>
     body {
-      <table>
-  <thead>
-    <tr>
-      <th>نام فاکتور</th>
-      <th>وضعیت</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr class="abnormal-row">
-      <td>WBC</td>
-      <td class="status-abnormal">غیر نرمال 🔴</td>
-    </tr>
-    <tr>
-      <td>RBC</td>
-      <td class="status-normal">نرمال 🟢</td>
-    </tr>
-  </tbody>
-</table>
-
       font-family: sans-serif;
       direction: rtl;
       text-align: center;
@@ -217,6 +198,17 @@
 </head>
 <body>
 
+  <div id="login-page">
+    <h2>ورود به سامانه تفسیر هوشمند آزمایش</h2>
+    <label for="firstName">نام:</label>
+    <input type="text" id="firstName" placeholder="نام خود را وارد کنید" required>
+    <label for="lastName">نام خانوادگی:</label>
+    <input type="text" id="lastName" placeholder="نام خانوادگی خود را وارد کنید" required>
+    <label for="phoneNumber">شماره تلفن:</label>
+    <input type="tel" id="phoneNumber" placeholder="شماره تلفن خود را وارد کنید" required>
+    <button onclick="login()">ورود</button>
+  </div>
+
   <div id="main-content">
     <h2>ارسال فایل آزمایش برای تفسیر</h2>
     <input type="file" id="fileInput" accept=".pdf">
@@ -264,9 +256,29 @@
       formData.append("file", file);
 
       try {
+      // مرحله ۱: آپلود فایل
+        const uploadRes = await fetch("https://apigw.paziresh24.com/dynamic-form/v1/upload", {
+          method: "POST",
+          headers: {
+            "x-api-key": "635b0a41-65cc-4bcb-ad30-cb028518619d"
+          },
+          body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+        const fileUrl = uploadData?.url;
+
+        if (!fileUrl) {
+          resultDiv.textContent = "خطا در دریافت آدرس فایل.";
+          return;
+        }
+
         const response = await fetch("https://mohikh.app.n8n.cloud/webhook/3935eaf2-3767-4e81-9d46-8c4ff52811ab", {
           method: "POST",
-          body: formData
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ file_url: fileUrl })
         });
 
         const rawData = await response.json();
